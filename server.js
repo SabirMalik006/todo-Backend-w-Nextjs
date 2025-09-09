@@ -13,7 +13,7 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:3000",
-    "https://todo-frontend-nextjs-ci89.vercel.app"
+    "https://todo-frontend-nextjs-47j4p7jfg-sabir-maliks-projects.vercel.app/"
   ],
   credentials: true,
   methods: ["GET","POST","PUT","DELETE","OPTIONS"]
