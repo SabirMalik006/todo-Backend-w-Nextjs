@@ -2,12 +2,14 @@ const Todo = require("../models/todoModels");
 
 exports.getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find({ user: req.user });
+    const todos = await Todo.find({ user: req.user }).sort({ order: 1 });
     res.json(todos);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
+
 
 exports.createTodo = async (req, res) => {
   try {
@@ -19,19 +21,23 @@ exports.createTodo = async (req, res) => {
       priority = undefined;
     }
 
+    const lastTodo = await Todo.findOne({ user: req.user }).sort("-order");
+    const newOrder = lastTodo ? lastTodo.order + 1 : 1;
+
     const todo = await Todo.create({
       title,
       description,
       user: req.user,
-      priority, 
+      priority,
+      order: newOrder,
     });
 
     res.json(todo);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
-  
 };
+
 
 exports.updateTodo = async (req, res) => {
   try {
@@ -74,3 +80,25 @@ exports.deleteTodo = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
+
+exports.updateTodoOrder = async (req, res) => {
+  try {
+    const { orderData } = req.body;  // yahan orderData read karo
+    if (!orderData || !Array.isArray(orderData))
+      return res.status(400).json({ message: "Invalid order data" });
+
+    const updates = orderData.map(t =>
+      Todo.findByIdAndUpdate(t.id, { order: t.order })
+    );
+    await Promise.all(updates);
+
+    res.json({ message: "Order updated" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
+

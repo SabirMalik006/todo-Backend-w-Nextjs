@@ -9,7 +9,7 @@ connectDB();
 
 const app = express();
 
-// ✅ CORS setup
+
 app.use(cors({
   origin: [
     "http://localhost:3000",
@@ -22,7 +22,7 @@ app.use(cors({
 app.use(express.json());
 app.use(cookieParser());
 
-// ✅ Routes
+
 app.use("/api/auth", require("./routes/authRoutes"));
 app.use("/api/todo", require("./routes/todoRoutes"));
 
