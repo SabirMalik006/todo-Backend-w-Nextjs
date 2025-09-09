@@ -9,29 +9,52 @@ exports.getTodos = async (req, res) => {
   }
 };
 
-
 exports.createTodo = async (req, res) => {
   try {
-    const { title , description } = req.body;
-    const todo = await Todo.create({ title , description, user: req.user });
+    let { title, description, priority } = req.body;
+    console.log("Create body received:", req.body);
+
+    const allowed = ["low", "medium", "high"];
+    if (!allowed.includes(priority)) {
+      priority = undefined;
+    }
+
+    const todo = await Todo.create({
+      title,
+      description,
+      user: req.user,
+      priority, 
+    });
+
     res.json(todo);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
+  
 };
-
 
 exports.updateTodo = async (req, res) => {
   try {
     const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
-    const { title, completed ,description} = req.body;
-    if(!title && !completed && !description) return res.status(400).json({ message: "At least one field is required" });
+    let { title, completed, description, priority } = req.body;
+
+    if (!title && completed === undefined && !description && !priority) {
+      return res
+        .status(400)
+        .json({ message: "At least one field is required" });
+    }
 
     if (title !== undefined) todo.title = title;
     if (completed !== undefined) todo.completed = completed;
     if (description !== undefined) todo.description = description;
+
+
+    const allowed = ["low", "medium", "high"];
+    if (priority !== undefined) {
+      todo.priority = allowed.includes(priority) ? priority : todo.priority;
+    }
 
     await todo.save();
     res.json(todo);
@@ -40,16 +63,14 @@ exports.updateTodo = async (req, res) => {
   }
 };
 
-
 exports.deleteTodo = async (req, res) => {
-    try {
-      const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
-      if (!todo) return res.status(404).json({ message: "Todo not found" });
-  
-      await Todo.deleteOne({ _id: todo._id }); 
-      res.json({ message: "Todo deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  };
-  
+  try {
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
+    if (!todo) return res.status(404).json({ message: "Todo not found" });
+
+    await Todo.deleteOne({ _id: todo._id });
+    res.json({ message: "Todo deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};

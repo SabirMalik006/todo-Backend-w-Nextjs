@@ -8,7 +8,6 @@ const {
     deleteTodo,
 } = require("../controllers/todoController");
 
-// Protected routes
 router.get("/", authMiddleware, getTodos);
 router.post("/", authMiddleware, createTodo);
 router.put("/:id", authMiddleware, updateTodo);
