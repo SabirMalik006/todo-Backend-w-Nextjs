@@ -1,4 +1,4 @@
-const jwt = require("jsonwebtoken");
+import jwt from "jsonwebtoken";
 
 const authMiddleware = (req, res, next) => {
   let token;
@@ -14,7 +14,7 @@ const authMiddleware = (req, res, next) => {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
       
-      req.user = decoded.id;
+      req.userId = decoded.id;
 
       next();
     } catch (error) {
@@ -27,4 +27,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-module.exports = authMiddleware;
+export default authMiddleware;
