@@ -3,7 +3,7 @@ import Todo from "../models/todoModels.js";
 
 export const getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find({ user: req.user }).sort({ order: 1 });
+    const todos = await Todo.find({ user: req.userId }).sort({ order: 1 });
 
     res.json({
       todo: todos.filter(t => t.status === "todo"),
