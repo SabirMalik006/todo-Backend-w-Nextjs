@@ -2,7 +2,7 @@ const Todo = require("../models/todoModels");
 
 exports.getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find({ user: req.user }).sort({ order: 1 });
+    const todos = await Todo.find({ user: req.user?.id }).sort({ order: 1 });
     res.json(todos);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -21,13 +21,13 @@ exports.createTodo = async (req, res) => {
       priority = undefined;
     }
 
-    const lastTodo = await Todo.findOne({ user: req.user }).sort("-order");
+    const lastTodo = await Todo.findOne({ user: req.user?.id }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
 
     const todo = await Todo.create({
       title,
       description,
-      user: req.user,
+      user: req.user?.id,
       priority,
       order: newOrder,
     });
@@ -41,7 +41,7 @@ exports.createTodo = async (req, res) => {
 
 exports.updateTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.user?.id });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
     let { title, completed, description, priority } = req.body;
@@ -71,7 +71,7 @@ exports.updateTodo = async (req, res) => {
 
 exports.deleteTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.user?.id });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
     await Todo.deleteOne({ _id: todo._id });
