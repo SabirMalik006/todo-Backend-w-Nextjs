@@ -4,7 +4,7 @@ const bcrypt = require("bcryptjs");
 exports.updateUser = async (req, res) => {
   try {
     const { name, oldPassword, newPassword, image } = req.body;
-    const userId = req.user?.id;
+    const userId = req.userId;
 
     if (!userId) {
       return res.status(400).json({ message: "Invalid token or user not authorized" });
@@ -41,3 +41,27 @@ exports.updateUser = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+exports.changeName = async (req, res) => {
+  try {
+    const { name, oldPassword } = req.body;
+
+   
+    const user = await User.findById(req.userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: "Invalid current password" });
+    }
+
+  
+    user.name = name;
+    await user.save();
+
+    res.json({ message: "Name updated successfully", user });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+}

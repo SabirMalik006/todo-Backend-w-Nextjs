@@ -2,7 +2,7 @@ const Todo = require("../models/todoModels");
 
 exports.getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find({ user: req.user?.id }).sort({ order: 1 });
+    const todos = await Todo.find({ user: req.userId }).sort({ order: 1 });
     res.json(todos);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -14,22 +14,28 @@ exports.getTodos = async (req, res) => {
 exports.createTodo = async (req, res) => {
   try {
     let { title, description, priority } = req.body;
-    console.log("Create body received:", req.body);
+    
 
     const allowed = ["low", "medium", "high"];
     if (!allowed.includes(priority)) {
       priority = undefined;
     }
 
-    const lastTodo = await Todo.findOne({ user: req.user?.id }).sort("-order");
+    const lastTodo = await Todo.findOne({ user: req.userId }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
+
+   
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const currentDay = days[new Date().getDay()].slice(0, 3);
 
     const todo = await Todo.create({
       title,
       description,
-      user: req.user?.id,
+      user: req.userId,
       priority,
       order: newOrder,
+      column: "todo",
+      day: currentDay,
     });
 
     res.json(todo);
@@ -41,29 +47,34 @@ exports.createTodo = async (req, res) => {
 
 exports.updateTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.user?.id });
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
-    let { title, completed, description, priority } = req.body;
+    let { title, completed, description, priority, column } = req.body;
 
-    if (!title && completed === undefined && !description && !priority) {
-      return res
-        .status(400)
-        .json({ message: "At least one field is required" });
+    if (!title && completed === undefined && !description && !priority && !column) {
+      return res.status(400).json({ message: "At least one field is required" });
     }
 
     if (title !== undefined) todo.title = title;
     if (completed !== undefined) todo.completed = completed;
     if (description !== undefined) todo.description = description;
 
-
     const allowed = ["low", "medium", "high"];
     if (priority !== undefined) {
       todo.priority = allowed.includes(priority) ? priority : todo.priority;
     }
 
+  
+    if (column !== undefined) {
+      todo.column = column;
+    }
+    if (req.body.day !== undefined) todo.day = req.body.day;
+
+
     await todo.save();
     res.json(todo);
+
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -71,7 +82,7 @@ exports.updateTodo = async (req, res) => {
 
 exports.deleteTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.user?.id });
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
     await Todo.deleteOne({ _id: todo._id });
@@ -89,8 +100,9 @@ exports.updateTodoOrder = async (req, res) => {
       return res.status(400).json({ message: "Invalid order data" });
 
     const updates = orderData.map(t =>
-      Todo.findByIdAndUpdate(t.id, { order: t.order })
+      Todo.findByIdAndUpdate(t.id, { order: t.order, column: t.column })
     );
+
     await Promise.all(updates);
 
     res.json({ message: "Order updated" });

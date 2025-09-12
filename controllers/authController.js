@@ -1,18 +1,18 @@
 // controllers/authController.js
-import User from "../models/userModels.js";
-import Token from "../models/tokenModel.js";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+const User = require("../models/userModels.js");
+const Token = require("../models/todoModels.js");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "15m" });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "60m" });
 };
 
 const generateRefreshToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_REFRESH_SECRET, { expiresIn: "7d" });
 };
 
-export const registerUser = async (req, res) => {
+exports.registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
@@ -35,7 +35,7 @@ export const registerUser = async (req, res) => {
   }
 };
 
-export const loginUser = async (req, res) => {
+exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -66,7 +66,7 @@ export const loginUser = async (req, res) => {
   }
 };
 
-export const refreshAccessToken = async (req, res) => {
+exports.refreshAccessToken = async (req, res) => {
   try {
     const { refreshToken } = req.body;
     if (!refreshToken) return res.status(401).json({ message: "Refresh token required" });
@@ -78,7 +78,7 @@ export const refreshAccessToken = async (req, res) => {
       if (err) return res.status(403).json({ message: "Invalid or expired refresh token" });
 
       const newAccessToken = jwt.sign({ id: decoded.id }, process.env.JWT_SECRET, {
-        expiresIn: "15m",
+        expiresIn: "60m",
       });
 
       res.json({ accessToken: newAccessToken });
@@ -88,9 +88,9 @@ export const refreshAccessToken = async (req, res) => {
   }
 };
 
-export const logoutUser = async (req, res) => {
+exports.logoutUser = async (req, res) => {
   try {
-    const userId = req.userId; // use req.userId from middleware
+    const userId = req.userId;
     await Token.deleteOne({ userId });
 
     res.json({ message: "User logged out successfully" });
@@ -99,7 +99,7 @@ export const logoutUser = async (req, res) => {
   }
 };
 
-export const getMe = async (req, res) => {
+exports.getMe = async (req, res) => {
   try {
     const user = await User.findById(req.userId).select("name email image");
 

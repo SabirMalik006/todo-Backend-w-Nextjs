@@ -1,6 +1,6 @@
 exports.uploadImage = async (req, res) => {
     try {
-      console.log("REQ.FILE ===>", req.file.path);
+      
   
       res.json({
         success: true,
