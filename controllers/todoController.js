@@ -1,4 +1,6 @@
 const Todo = require("../models/todoModels");
+const mongoose = require("mongoose");
+const column = require("../models/columnModel");
 
 exports.getTodos = async (req, res) => {
   try {
@@ -9,12 +11,9 @@ exports.getTodos = async (req, res) => {
   }
 };
 
-
-
 exports.createTodo = async (req, res) => {
   try {
-    let { title, description, priority } = req.body;
-    
+    let { title, description, priority, column , day} = req.body;
 
     const allowed = ["low", "medium", "high"];
     if (!allowed.includes(priority)) {
@@ -24,17 +23,25 @@ exports.createTodo = async (req, res) => {
     const lastTodo = await Todo.findOne({ user: req.userId }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
 
-   
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
     const currentDay = days[new Date().getDay()].slice(0, 3);
 
+    // ✅ Fix: use req.body.column
     const todo = await Todo.create({
       title,
       description,
       user: req.userId,
       priority,
       order: newOrder,
-      column: "todo",
+      column: new mongoose.Types.ObjectId(column), // correct usage
       day: currentDay,
     });
 
@@ -44,7 +51,6 @@ exports.createTodo = async (req, res) => {
   }
 };
 
-
 exports.updateTodo = async (req, res) => {
   try {
     const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
@@ -52,8 +58,16 @@ exports.updateTodo = async (req, res) => {
 
     let { title, completed, description, priority, column } = req.body;
 
-    if (!title && completed === undefined && !description && !priority && !column) {
-      return res.status(400).json({ message: "At least one field is required" });
+    if (
+      !title &&
+      completed === undefined &&
+      !description &&
+      !priority &&
+      !column
+    ) {
+      return res
+        .status(400)
+        .json({ message: "At least one field is required" });
     }
 
     if (title !== undefined) todo.title = title;
@@ -65,16 +79,13 @@ exports.updateTodo = async (req, res) => {
       todo.priority = allowed.includes(priority) ? priority : todo.priority;
     }
 
-  
     if (column !== undefined) {
       todo.column = column;
     }
     if (req.body.day !== undefined) todo.day = req.body.day;
 
-
     await todo.save();
     res.json(todo);
-
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -92,14 +103,13 @@ exports.deleteTodo = async (req, res) => {
   }
 };
 
-
 exports.updateTodoOrder = async (req, res) => {
   try {
-    const { orderData } = req.body;  // yahan orderData read karo
+    const { orderData } = req.body;
     if (!orderData || !Array.isArray(orderData))
       return res.status(400).json({ message: "Invalid order data" });
 
-    const updates = orderData.map(t =>
+    const updates = orderData.map((t) =>
       Todo.findByIdAndUpdate(t.id, { order: t.order, column: t.column })
     );
 
@@ -111,7 +121,3 @@ exports.updateTodoOrder = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
-
-
-
