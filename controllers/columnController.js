@@ -44,6 +44,32 @@ exports.createColumn = async (req, res) => {
   }
 };
 
+exports.updateColumn = async (req, res) => {
+  try {
+    const { name } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ message: "Column name is required" });
+    }
+
+    const column = await Column.findOneAndUpdate(
+      { _id: req.params.id, user: req.userId },
+      { name },
+      { new: true }
+    );
+
+    if (!column) {
+      return res.status(404).json({ message: "Column not found" });
+    }
+
+    res.json(column);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+
+
 exports.deleteColumn = async (req, res) => {
   try {
     const col = await Column.findOne({ _id: req.params.id, user: req.userId });

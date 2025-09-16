@@ -13,6 +13,9 @@ router.get("/", columnController.getColumns);
 router.post("/", columnController.createColumn);
 
 
+router.put("/:id", columnController.updateColumn);
+
+
 router.delete("/:id", columnController.deleteColumn);
 
 module.exports = router;
