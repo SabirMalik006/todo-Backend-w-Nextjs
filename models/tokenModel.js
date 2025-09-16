@@ -1,5 +1,4 @@
-// models/tokenModel.js
-import mongoose from "mongoose";
+const mongoose = require("mongoose");
 
 const tokenSchema = new mongoose.Schema({
   userId: {
@@ -14,10 +13,8 @@ const tokenSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now,
-    expires: 7 * 24 * 60 * 60, // token expires after 7 days
+    expires: 7 * 24 * 60 * 60, 
   },
 });
 
-const Token = mongoose.models.Token || mongoose.model("Token", tokenSchema);
-
-export default Token;
+module.exports = mongoose.model("Token", tokenSchema);

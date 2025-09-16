@@ -1,44 +1,48 @@
-// controllers/todoController.js
-import Todo from "../models/todoModels.js";
+const Todo = require("../models/todoModels");
+const mongoose = require("mongoose");
+const column = require("../models/columnModel");
 
-export const getTodos = async (req, res) => {
+exports.getTodos = async (req, res) => {
   try {
-    const todos = await Todo.find({ user: req.user }).sort({ order: 1 });
-
-    res.json({
-      todo: todos.filter(t => t.status === "todo"),
-      pending: todos.filter(t => t.status === "pending"),
-      done: todos.filter(t => t.status === "done"),
-    });
+    const todos = await Todo.find({ user: req.userId }).sort({ order: 1 });
+    res.json(todos);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
 
-export const createTodo = async (req, res) => {
+exports.createTodo = async (req, res) => {
   try {
-    let { title, description, priority, status } = req.body;
+    let { title, description, priority, column , day} = req.body;
 
-    const allowedPriorities = ["low", "medium", "high"];
-    if (!allowedPriorities.includes(priority)) {
-      priority = "low";
+    const allowed = ["low", "medium", "high"];
+    if (!allowed.includes(priority)) {
+      priority = undefined;
     }
 
-    const allowedStatus = ["todo", "pending", "done"];
-    if (!allowedStatus.includes(status)) {
-      status = "todo";
-    }
-
-    const lastTodo = await Todo.findOne({ user: req.user }).sort("-order");
+    const lastTodo = await Todo.findOne({ user: req.userId }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
 
+    const days = [
+      "Sunday",
+      "Monday",
+      "Tuesday",
+      "Wednesday",
+      "Thursday",
+      "Friday",
+      "Saturday",
+    ];
+    const currentDay = days[new Date().getDay()].slice(0, 3);
+
+    // ✅ Fix: use req.body.column
     const todo = await Todo.create({
       title,
       description,
-      user: req.user,
+      user: req.userId,
       priority,
-      status,
       order: newOrder,
+      column: new mongoose.Types.ObjectId(column), // correct usage
+      day: currentDay,
     });
 
     res.json(todo);
@@ -47,19 +51,19 @@ export const createTodo = async (req, res) => {
   }
 };
 
-export const updateTodo = async (req, res) => {
+exports.updateTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
-    let { title, description, priority, status, order } = req.body;
+    let { title, completed, description, priority, column } = req.body;
 
     if (
-      title === undefined &&
-      description === undefined &&
-      priority === undefined &&
-      status === undefined &&
-      order === undefined
+      !title &&
+      completed === undefined &&
+      !description &&
+      !priority &&
+      !column
     ) {
       return res
         .status(400)
@@ -67,21 +71,18 @@ export const updateTodo = async (req, res) => {
     }
 
     if (title !== undefined) todo.title = title;
+    if (completed !== undefined) todo.completed = completed;
     if (description !== undefined) todo.description = description;
 
-    const allowedPriorities = ["low", "medium", "high"];
+    const allowed = ["low", "medium", "high"];
     if (priority !== undefined) {
-      todo.priority = allowedPriorities.includes(priority)
-        ? priority
-        : todo.priority;
+      todo.priority = allowed.includes(priority) ? priority : todo.priority;
     }
 
-    const allowedStatus = ["todo", "pending", "done"];
-    if (status !== undefined) {
-      todo.status = allowedStatus.includes(status) ? status : todo.status;
+    if (column !== undefined) {
+      todo.column = column;
     }
-
-    if (order !== undefined) todo.order = order;
+    if (req.body.day !== undefined) todo.day = req.body.day;
 
     await todo.save();
     res.json(todo);
@@ -90,9 +91,9 @@ export const updateTodo = async (req, res) => {
   }
 };
 
-export const deleteTodo = async (req, res) => {
+exports.deleteTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.user });
+    const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
     await Todo.deleteOne({ _id: todo._id });
@@ -102,19 +103,19 @@ export const deleteTodo = async (req, res) => {
   }
 };
 
-export const updateTodoOrder = async (req, res) => {
+exports.updateTodoOrder = async (req, res) => {
   try {
     const { orderData } = req.body;
-    if (!orderData || !Array.isArray(orderData)) {
+    if (!orderData || !Array.isArray(orderData))
       return res.status(400).json({ message: "Invalid order data" });
-    }
 
-    const updates = orderData.map(t =>
-      Todo.findByIdAndUpdate(t.id, { order: t.order, status: t.status })
+    const updates = orderData.map((t) =>
+      Todo.findByIdAndUpdate(t.id, { order: t.order, column: t.column })
     );
+
     await Promise.all(updates);
 
-    res.json({ message: "Order updated successfully" });
+    res.json({ message: "Order updated" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });

@@ -1,7 +1,7 @@
-import express from "express";
+const express = require("express");
 const router = express.Router();
-import authMiddleware from "../middleware/authMiddleware.js";
-import { getTodos, createTodo, updateTodoOrder, updateTodo, deleteTodo } from "../controllers/todoController.js";
+const authMiddleware = require("../middleware/authMiddleware");
+const { getTodos, createTodo, updateTodoOrder, updateTodo, deleteTodo } = require("../controllers/todoController");
 router.get("/", authMiddleware, getTodos);
 router.post("/", authMiddleware, createTodo);
 router.put("/update-order", authMiddleware ,  updateTodoOrder);
@@ -11,4 +11,4 @@ router.delete("/:id", authMiddleware, deleteTodo);
 
 
 
-export default router;
+module.exports = router;
