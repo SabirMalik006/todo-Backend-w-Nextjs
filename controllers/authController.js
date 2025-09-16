@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const Column = require("../models/columnModel.js");
 
 const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "60m" });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1h" });
 };
 
 const generateRefreshToken = (id) => {
@@ -102,7 +102,7 @@ exports.refreshAccessToken = async (req, res) => {
         { id: decoded.id },
         process.env.JWT_SECRET,
         {
-          expiresIn: "60m",
+          expiresIn: "1h",
         }
       );
 
