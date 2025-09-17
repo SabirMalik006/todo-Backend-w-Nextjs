@@ -6,7 +6,7 @@ const jwt = require("jsonwebtoken");
 const Column = require("../models/columnModel.js");
 
 const generateAccessToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "1h" });
+  return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "15m" });
 };
 
 const generateRefreshToken = (id) => {
@@ -52,33 +52,31 @@ exports.registerUser = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
   try {
-    const { email, password } = req.body;
+      const { email, password } = req.body;
+      const user = await User.findOne({ email });
+      if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+      const isMatch = await bcrypt.compare(password, user.password);
+      if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ message: "Invalid credentials" });
+      const accessToken = generateAccessToken(user._id);
+      const refreshToken = generateRefreshToken(user._id);
 
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
+      await Token.findOneAndUpdate(
+          { userId: user._id },
+          { refreshToken, accessToken },
+          { upsert: true, new: true }
+      );
 
-    await Token.findOneAndUpdate(
-      { userId: user._id },
-      { refreshToken },
-      { upsert: true, new: true }
-    );
-
-    res.json({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      accessToken,
-      refreshToken,
-    });
+      res.json({
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          accessToken,
+          refreshToken,
+      });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message });
   }
 };
 
@@ -102,7 +100,7 @@ exports.refreshAccessToken = async (req, res) => {
         { id: decoded.id },
         process.env.JWT_SECRET,
         {
-          expiresIn: "1h",
+          expiresIn: "15m",
         }
       );
 
