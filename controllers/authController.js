@@ -26,9 +26,10 @@ exports.registerUser = async (req, res) => {
 
     const user = await User.create({ name, email, password: hashedPassword });
 
-    const defaultColumns = ["todo", "pending", "done"];
-    await Promise.all(
-      defaultColumns.map((name, idx) =>
+    // Create default columns
+    const defaultColumnsNames = ["todo", "pending", "done"];
+    const createdColumns = await Promise.all(
+      defaultColumnsNames.map((name, idx) =>
         Column.create({
           name,
           user: user._id,
@@ -38,6 +39,16 @@ exports.registerUser = async (req, res) => {
       )
     );
 
+    // Create dummy todo in first column ("todo")
+    const firstColumn = createdColumns[0]; // "todo" column
+    await Todo.create({
+      title: "Welcome! 🎉",
+      description: "This is your first todo. Edit or delete it to get started.",
+      user: user._id,
+      columnId: firstColumn._id,
+    });
+
+    // Return only user info (no changes here)
     res.json({
       _id: user._id,
       name: user.name,
@@ -47,6 +58,7 @@ exports.registerUser = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 
 
