@@ -4,6 +4,8 @@ const Token = require("../models/tokenModel.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Column = require("../models/columnModel.js");
+const Todo = require("../models/todoModels.js");
+// const fetch = require("node-fetch");
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: "15m" });
@@ -39,16 +41,13 @@ exports.registerUser = async (req, res) => {
       )
     );
 
-    // Create dummy todo in first column ("todo")
-    const firstColumn = createdColumns[0]; // "todo" column
+    const firstColumn = createdColumns[0];
     await Todo.create({
       title: "Welcome! 🎉",
       description: "This is your first todo. Edit or delete it to get started.",
       user: user._id,
       columnId: firstColumn._id,
     });
-
-    // Return only user info (no changes here)
     res.json({
       _id: user._id,
       name: user.name,
@@ -64,31 +63,31 @@ exports.registerUser = async (req, res) => {
 
 exports.loginUser = async (req, res) => {
   try {
-      const { email, password } = req.body;
-      const user = await User.findOne({ email });
-      if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(400).json({ message: "Invalid credentials" });
 
-      const isMatch = await bcrypt.compare(password, user.password);
-      if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
-      const accessToken = generateAccessToken(user._id);
-      const refreshToken = generateRefreshToken(user._id);
+    const accessToken = generateAccessToken(user._id);
+    const refreshToken = generateRefreshToken(user._id);
 
-      await Token.findOneAndUpdate(
-          { userId: user._id },
-          { refreshToken, accessToken },
-          { upsert: true, new: true }
-      );
+    await Token.findOneAndUpdate(
+      { userId: user._id },
+      { refreshToken, accessToken },
+      { upsert: true, new: true }
+    );
 
-      res.json({
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          accessToken,
-          refreshToken,
-      });
+    res.json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      accessToken,
+      refreshToken,
+    });
   } catch (error) {
-      res.status(500).json({ message: error.message });
+    res.status(500).json({ message: error.message });
   }
 };
 
@@ -148,3 +147,119 @@ exports.getMe = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.googleLogin = (req, res) => {
+  const state = Math.random().toString(36).substring(2);
+
+  res.cookie("oauth_state", state, { httpOnly: true, sameSite: "Lax" });
+
+  console.log("GOOGLE_REDIRECT_URI:", process.env.GOOGLE_REDIRECT_URI);
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID,
+    redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+    response_type: "code",
+    scope: "openid email profile",
+    access_type: "offline",
+    state,
+  });
+
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
+};
+
+exports.googleCallback = async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    if (state !== req.cookies.oauth_state) {
+      return res.status(400).json({ message: "Invalid state" });
+    }
+
+    // 1. Exchange code for tokens
+    const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        redirect_uri: process.env.GOOGLE_REDIRECT_URI,
+        grant_type: "authorization_code",
+      }),
+    });
+
+    const tokenData = await tokenResp.json();
+    if (tokenData.error) return res.status(400).json(tokenData);
+
+    // 2. Decode Google user info
+    const parts = tokenData.id_token.split(".");
+    const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
+    const { email, name, picture, sub } = payload;
+
+    // 3. Find or create user
+    let user = await User.findOne({ email });
+    let isNew = false;
+
+    if (!user) {
+      user = await User.create({
+        name,
+        email,
+        googleId: sub,
+        image: picture,
+      });
+      isNew = true;
+    }
+
+    // 4. Ensure default columns + welcome todo
+    const existingColumns = await Column.find({ user: user._id });
+    if (isNew || existingColumns.length === 0) {
+      // create default columns
+      const defaultColumnsNames = ["todo", "pending", "done"];
+      const createdColumns = await Promise.all(
+        defaultColumnsNames.map((colName, idx) =>
+          Column.create({
+            name: colName,
+            user: user._id,
+            order: idx + 1,
+            isDefault: true,
+          })
+        )
+      );
+
+      // create welcome todo in the first column
+      const firstColumn = createdColumns[0];
+      await Todo.create({
+        title: "Welcome! 🎉",
+        description: "This is your first todo. Edit or delete it to get started.",
+        user: user._id,
+        columnId: firstColumn._id,
+      });
+    }
+
+    // 5. Generate JWTs
+    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "15m",
+    });
+    const refreshToken = jwt.sign(
+      { id: user._id },
+      process.env.JWT_REFRESH_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    await Token.findOneAndUpdate(
+      { userId: user._id },
+      { refreshToken, accessToken },
+      { upsert: true, new: true }
+    );
+
+    // 6. Redirect back to frontend
+    const redirectUrl = `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&id=${user._id}&name=${encodeURIComponent(
+      user.name
+    )}&email=${encodeURIComponent(user.email)}`;
+
+    return res.redirect(redirectUrl);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Google auth failed" });
+  }
+};
+
