@@ -8,6 +8,9 @@ const todoSchema = new mongoose.Schema({
   order: { type: Number, default: 0 },
   column: { type: mongoose.Schema.Types.ObjectId, ref: "Column" },
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  board: { type: mongoose.Schema.Types.ObjectId, ref: "Board" },
+  team: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+  members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
   day: { type: String },
 }, { timestamps: true });
 

@@ -1,13 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const teamController = require("../controllers/teamController");
 const authMiddleware = require("../middleware/authMiddleware");
+const { createTeam, inviteMember, getUserTeams, getTeam, updateMemberRole, removeMember } = require("../controllers/teamController");
+const { acceptInvite, rejectInvite } = require("../controllers/inviteController");
 
-router.post("/", authMiddleware, teamController.createTeam);
-router.post("/:teamId/invite", authMiddleware, teamController.inviteMember);
-router.get("/", authMiddleware, teamController.getUserTeams);
-router.get("/:teamId", authMiddleware, teamController.getTeam);
-router.patch("/:teamId/role", authMiddleware, teamController.updateMemberRole);
-router.delete("/:teamId/member", authMiddleware, teamController.removeMember);
+router.use(authMiddleware);
 
-module.exports = router;    
+router.post("/", createTeam);
+router.get("/my-teams", getUserTeams);
+router.get("/:teamId", getTeam);
+router.post("/:teamId/invite", inviteMember);
+router.post("/accept-invite", acceptInvite);
+router.post("/reject-invite", rejectInvite);
+router.patch("/:teamId/member-role", updateMemberRole);
+router.patch("/:teamId/remove-member", removeMember);
+
+module.exports = router;
