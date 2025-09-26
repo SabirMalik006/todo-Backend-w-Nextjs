@@ -1,134 +1,77 @@
 const Board = require("../models/BoardModal");
-const Team = require("../models/TeamModal");
 
-async function getMemberRole(team, userId) {
-  const member = team.members.find(m => m.userId.toString() === userId.toString());
-  return member ? member.role : null;
-}
 
-exports.getAllBoards = async (req, res) => {
-  try {
-    const boards = await Board.find();
-    res.json(boards);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error fetching boards" });
-  }
-};
-
+// Create Personal Board
 exports.createBoard = async (req, res) => {
   try {
-    const { title, description, teamId } = req.body; 
-    const userId = req.userId;
+    const { title, description } = req.body;
 
-    if (!title || !teamId) {
-      return res.status(400).json({ message: "Title and teamId are required" });
+    if (!title) {
+      return res.status(400).json({ message: "Board title is required" });
     }
 
-    const team = await Team.findById(teamId);
-    if (!team) return res.status(404).json({ message: "Team not found" });
-
-    const role = await getMemberRole(team, userId);
-    if (!["owner", "admin"].includes(role)) {
-      return res.status(403).json({ message: "Not allowed" });
-    }
-
-    const board = await Board.create({
+    const newBoard = new Board({
       title,
-      description: description || "",
-      team: teamId,
-      members: [{ userId, role: "admin" }],
-      columns: [], 
+      description,
+      owner: req.userId, // ✅ change here
     });
 
-    team.boards.push(board._id);
-    await team.save();
+    await newBoard.save();
 
-    res.status(201).json(board);
-  } catch (err) {
-    console.error("Create Board Error:", err);
-    res.status(500).json({ message: "Error creating board" });
+    return res.status(201).json(newBoard);
+  } catch (error) {
+    console.error("Error creating board:", error);
+    res.status(500).json({ message: "Server error while creating board" });
   }
 };
 
-
-exports.getBoard = async (req, res) => {
+// Get All Personal Boards
+exports.getBoards = async (req, res) => {
   try {
-    const board = await Board.findById(req.params.boardId).populate("members.userId", "name email");
-    if (!board) return res.status(404).json({ message: "Board not found" });
-    res.json(board);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching board" });
+    const boards = await Board.find({ owner: req.userId }); // ✅ change here
+    return res.json(boards);
+  } catch (error) {
+    console.error("Error fetching boards:", error);
+    res.status(500).json({ message: "Server error while fetching boards" });
   }
 };
 
-exports.addMember = async (req, res) => {
+// Delete Board
+exports.deleteBoard = async (req, res) => {
   try {
-    const { boardId } = req.params;
-    const { userId, role } = req.body;
-    const actorId = req.userId;
+    const { id } = req.params;
+    const board = await Board.findOneAndDelete({ _id: id, owner: req.userId }); // ✅ change here
 
-    const board = await Board.findById(boardId).populate("team");
-    if (!board) return res.status(404).json({ message: "Board not found" });
+    if (!board) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
 
-    const teamRole = await getMemberRole(board.team, actorId);
-    if (!["owner","admin"].includes(teamRole)) return res.status(403).json({ message: "Not allowed" });
-
-    const already = board.members.some(m => m.userId.toString() === userId);
-    if (already) return res.status(400).json({ message: "User already in board" });
-
-    board.members.push({ userId, role: role || "member" });
-    await board.save();
-
-    res.json({ message: "Member added", board });
-  } catch (err) {
-    res.status(500).json({ message: "Error adding member" });
+    return res.json({ message: "Board deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting board:", error);
+    res.status(500).json({ message: "Server error while deleting board" });
   }
 };
 
-exports.removeMember = async (req, res) => {
+// Update Board
+exports.updateBoard = async (req, res) => {
   try {
-    const { boardId } = req.params;
-    const { userId: targetUserId } = req.body;
-    const actorId = req.userId;
+    const { id } = req.params;
+    const { title, description } = req.body;
 
-    const board = await Board.findById(boardId).populate("team");
-    if (!board) return res.status(404).json({ message: "Board not found" });
+    const updatedBoard = await Board.findOneAndUpdate(
+      { _id: id, owner: req.userId }, // ✅ change here
+      { title, description },
+      { new: true }
+    );
 
-    const teamRole = await getMemberRole(board.team, actorId);
-    if (!["owner","admin"].includes(teamRole)) return res.status(403).json({ message: "Not allowed" });
+    if (!updatedBoard) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
 
-    board.members = board.members.filter(m => m.userId.toString() !== targetUserId);
-    await board.save();
-
-    res.json({ message: "Member removed", board });
-  } catch (err) {
-    res.status(500).json({ message: "Error removing member" });
+    return res.json(updatedBoard);
+  } catch (error) {
+    console.error("Error updating board:", error);
+    res.status(500).json({ message: "Server error while updating board" });
   }
 };
-
-exports.getBoardsByTeam = async (req, res) => {
-  try {
-    const boards = await Board.find({ teamId: req.params.teamId });
-    res.json(boards);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Error fetching boards" });
-  }
-};
-// exports.deleteBoard = async (req, res) => {
-//   try {
-//     const { boardId } = req.params;
-//     const actorId = req.userId;
-//     const board = await Board.findById(boardId).populate("team");
-//     if (!board) return res.status(404).json({ message: "Board not found" });
-//     const teamRole = await getMemberRole(board.team, actorId);
-//     if (!["owner","admin"].includes(teamRole)) return res.status(403).json({ message: "Not allowed" });
-//     await Board.findByIdAndDelete(boardId);
-//     board.team.boards = board.team.boards.filter(bId => bId.toString() !== boardId);
-//     await board.team.save();
-//     res.json({ message: "Board deleted" });
-//   } catch (err) {
-//     res.status(500).json({ message: "Error deleting board" });
-//   }
-// }

@@ -1,13 +1,24 @@
 const mongoose = require("mongoose");
+const Schema = mongoose.Schema;
 
-const inviteSchema = new mongoose.Schema({
-  teamId: { type: mongoose.Schema.Types.ObjectId, ref: "Team", required: true },
-  email: { type: String, required: true },
-  role: { type: String, enum: ["member", "admin"], default: "member" },
-  token: { type: String, required: true, unique: true },
-  expiresAt: { type: Date, required: true },
-  invitedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  status: { type: String, enum: ["pending", "accepted", "rejected"], default: "pending" }
-}, { timestamps: true });
+const InviteSchema = new Schema(
+  {
+    email: { type: String, required: true },
+    invitedBy: { type: Schema.Types.ObjectId, ref: "User", required: true }, 
+    team: { type: Schema.Types.ObjectId, ref: "Team" },  
+    board: { type: Schema.Types.ObjectId, ref: "Board" },
+    role: {
+      type: String,
+      enum: ["owner", "admin", "member"],
+      default: "member",
+    },
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+      default: "pending",
+    },
+  },
+  { timestamps: true }
+);
 
-module.exports = mongoose.model("Invite", inviteSchema);
+module.exports = mongoose.model("Invite", InviteSchema);
