@@ -75,3 +75,18 @@ exports.updateBoard = async (req, res) => {
     res.status(500).json({ message: "Server error while updating board" });
   }
 };
+
+
+exports.getBoardById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const board = await Board.findOne({ _id: id, owner: req.userId }); 
+    if (!board) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
+    return res.json(board);
+  } catch (error) {
+    console.error("Error fetching board:", error);
+    res.status(500).json({ message: "Server error while fetching board" });
+  }
+};

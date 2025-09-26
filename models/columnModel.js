@@ -8,6 +8,7 @@ const columnSchema = new mongoose.Schema(
     isDefault: { type: Boolean, default: false },
     board: { type: mongoose.Schema.Types.ObjectId, ref: "Board" },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, 
+    todos: [{ type: mongoose.Schema.Types.ObjectId, ref: "Todo" }],
   },
   { timestamps: true }
 );
