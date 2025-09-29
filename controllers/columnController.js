@@ -86,11 +86,9 @@ exports.deleteColumn = async (req, res) => {
 exports.getColumnsByBoard = async (req, res) => {
   try {
     const { boardId } = req.params;
-    const board = await Board.findById(boardId);
-    if (!board) return res.status(404).json({ message: "Board not found" });
     const columns = await Column.find({ board: boardId });
-    return res.json(columns);
-  } catch (err) {
-    return res.status(500).json({ message: "Error fetching columns" });
+    res.json(columns);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching columns" });
   }
 };

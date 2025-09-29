@@ -121,3 +121,23 @@ exports.updateTodoOrder = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
+
+exports.getTodosByBoard = async (req, res) => {
+  try {
+    const { boardId } = req.params;
+
+    const todos = await Todo.find()
+      .populate({
+        path: "column",
+        match: { board: boardId }, 
+      })
+      .populate("user");
+
+    
+    const filtered = todos.filter((t) => t.column !== null);
+
+    res.json(filtered);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching todos" });
+  }
+};

@@ -5,12 +5,17 @@ const {
   getBoards,
   deleteBoard,
   updateBoard,
+  getBoardById,
+  getBoardActivities
+
 } = require("../controllers/boardController");
 const authMiddleware = require("../middleware/authMiddleware");
 
 
 
+router.get("/:id", authMiddleware, getBoardById);
 
+router.get("/:id/activities", getBoardActivities);
 
 router.post("/", authMiddleware, createBoard);
 
