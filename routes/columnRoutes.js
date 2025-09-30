@@ -6,7 +6,7 @@ const columnController = require("../controllers/columnController");
 
 router.use(authMiddleware);
 
-router.get("/board/:id", columnController.getColumnsByBoard);
+router.get("/board/:boardId", authMiddleware, columnController.getColumnsByBoard);
 
 router.get("/", columnController.getColumns);
 

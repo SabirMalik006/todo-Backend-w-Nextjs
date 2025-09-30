@@ -1,6 +1,6 @@
 const Team = require("../models/TeamModal");
 const User = require("../models/userModels");
-const Invite = require("../models/InviteModal");
+const Invite = require("../models/BoardTeamModal");
 const crypto = require("crypto");
 
 async function getMemberRole(team, userId) {

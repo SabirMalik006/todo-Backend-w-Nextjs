@@ -3,14 +3,19 @@ const Column = require("../models/columnModel");
 
 exports.getColumns = async (req, res) => {
   try {
-    let columns = await Column.find({ user: req.userId }).sort({ order: 1 });
+    const { boardId } = req.query; 
 
-  
+    if (!boardId) {
+      return res.status(400).json({ message: "Board ID is required" });
+    }
+
+    let columns = await Column.find({ user: req.userId, board: boardId }).sort({ order: 1 });
+
     if (columns.length === 0) {
       const defaults = [
-        { name: "todo", user: req.userId, order: 1, isDefault: true },
-        { name: "pending", user: req.userId, order: 2, isDefault: true },
-        { name: "done", user: req.userId, order: 3, isDefault: true },
+        { name: "Todo", user: req.userId, board: boardId, order: 1, isDefault: true },
+        { name: "Pending", user: req.userId, board: boardId, order: 2, isDefault: true },
+        { name: "Done", user: req.userId, board: boardId, order: 3, isDefault: true },
       ];
 
       columns = await Column.insertMany(defaults);
@@ -18,23 +23,29 @@ exports.getColumns = async (req, res) => {
 
     res.json(columns);
   } catch (err) {
+    console.error("Error fetching columns:", err);
     res.status(500).json({ message: err.message });
   }
 };
 
 
+
 exports.createColumn = async (req, res) => {
   try {
+    const boardId = req.body.boardId || req.body.board;
     const { name } = req.body;
-    if (!name) return res.status(400).json({ message: "Column name required" });
 
-    const lastColumn = await Column.findOne({ user: req.userId }).sort("-order");
-    const newOrder = lastColumn ? lastColumn.order + 1 : 1;
+    if (!name || !boardId)
+      return res.status(400).json({ message: "Name and boardId are required" });
+
+    const last = await Column.findOne({ board: boardId, user: req.userId }).sort("-order");
+    const order = last ? last.order + 1 : 1;
 
     const column = await Column.create({
       name,
       user: req.userId,
-      order: newOrder,
+      board: boardId,
+      order,
       isDefault: false,
     });
 
@@ -86,11 +97,29 @@ exports.deleteColumn = async (req, res) => {
 exports.getColumnsByBoard = async (req, res) => {
   try {
     const { boardId } = req.params;
-    const board = await Board.findById(boardId);
-    if (!board) return res.status(404).json({ message: "Board not found" });
-    const columns = await Column.find({ board: boardId });
+
+    if (!boardId) {
+      return res.status(400).json({ message: "Board ID is required" });
+    }
+
+    let columns = await Column.find({
+      board: boardId,
+      user: req.userId,
+    }).sort({ order: 1 });
+
+    if (columns.length === 0) {
+      const defaults = [
+        { name: "Todo", user: req.userId, board: boardId, order: 1, isDefault: true },
+        { name: "Pending", user: req.userId, board: boardId, order: 2, isDefault: true },
+        { name: "Done", user: req.userId, board: boardId, order: 3, isDefault: true },
+      ];
+
+      columns = await Column.insertMany(defaults);
+    }
+
     return res.json(columns);
-  } catch (err) {
-    return res.status(500).json({ message: "Error fetching columns" });
+  } catch (error) {
+    console.error("Error fetching columns:", error);
+    res.status(500).json({ message: "Error fetching columns" });
   }
 };

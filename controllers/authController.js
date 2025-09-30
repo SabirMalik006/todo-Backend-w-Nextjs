@@ -174,7 +174,7 @@ exports.googleCallback = async (req, res) => {
       return res.status(400).json({ message: "Invalid state" });
     }
 
-    // 1. Exchange code for tokens
+
     const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -190,12 +190,12 @@ exports.googleCallback = async (req, res) => {
     const tokenData = await tokenResp.json();
     if (tokenData.error) return res.status(400).json(tokenData);
 
-    // 2. Decode Google user info
+
     const parts = tokenData.id_token.split(".");
     const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
     const { email, name, picture, sub } = payload;
 
-    // 3. Find or create user
+
     let user = await User.findOne({ email });
     let isNew = false;
 
@@ -209,10 +209,10 @@ exports.googleCallback = async (req, res) => {
       isNew = true;
     }
 
-    // 4. Ensure default columns + welcome todo
+
     const existingColumns = await Column.find({ user: user._id });
     if (isNew || existingColumns.length === 0) {
-      // create default columns
+
       const defaultColumnsNames = ["todo", "pending", "done"];
       const createdColumns = await Promise.all(
         defaultColumnsNames.map((colName, idx) =>
@@ -225,7 +225,7 @@ exports.googleCallback = async (req, res) => {
         )
       );
 
-      // create welcome todo in the first column
+
       const firstColumn = createdColumns[0];
       await Todo.create({
         title: "Welcome! 🎉",
@@ -235,7 +235,7 @@ exports.googleCallback = async (req, res) => {
       });
     }
 
-    // 5. Generate JWTs
+
     const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "15m",
     });
@@ -251,7 +251,7 @@ exports.googleCallback = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    // 6. Redirect back to frontend
+
     const redirectUrl = `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&id=${user._id}&name=${encodeURIComponent(
       user.name
     )}&email=${encodeURIComponent(user.email)}`;

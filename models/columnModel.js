@@ -4,10 +4,9 @@ const columnSchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    board: { type: mongoose.Schema.Types.ObjectId, ref: "Board", required: true },
     order: { type: Number, default: 0 },
     isDefault: { type: Boolean, default: false },
-    board: { type: mongoose.Schema.Types.ObjectId, ref: "Board" },
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, 
     todos: [{ type: mongoose.Schema.Types.ObjectId, ref: "Todo" }],
   },
   { timestamps: true }

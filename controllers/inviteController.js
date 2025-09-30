@@ -1,128 +1,100 @@
 const Invite = require("../models/InviteModal");
 const Team = require("../models/TeamModal");
-const Board = require("../models/BoardModal");
 const User = require("../models/userModels");
+const crypto = require("crypto");
+const sendEmail = require("../utils/sendEmail");
 
 
 exports.sendInvite = async (req, res) => {
   try {
-    const { email, teamId, boardId, role } = req.body;
-    const invitedBy = req.userId;
+    const { email, teamId } = req.body;
+    const inviterId = req.userId;
 
-    if (!email) return res.status(400).json({ message: "Email required" });
+    if (!email || !teamId) {
+      return res.status(400).json({ message: "Email and teamId are required" });
+    }
+
+    const team = await Team.findById(teamId);
+    if (!team) return res.status(404).json({ message: "Team not found" });
 
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    const token = crypto.randomBytes(32).toString("hex");
 
 
-    const existingInvite = await Invite.findOne({ email, team: teamId, board: boardId, status: "pending" });
-    if (existingInvite) return res.status(400).json({ message: "Invite already sent" });
-
-    const invite = await Invite.create({
+    const invite = new Invite({
       email,
-      invitedBy,
-      team: teamId || null,
-      board: boardId || null,
-      role: role || "member",
+      teamId,
+      invitedBy: inviterId,
+      token,
     });
+    await invite.save();
 
-    res.status(201).json(invite);
-  } catch (err) {
-    res.status(500).json({ message: "Error sending invite" });
+
+    const inviteLink = `${process.env.FRONTEND_URL}/invite/${token}`;
+    const subject = `You're invited to join ${team.name}`;
+    const message = `
+      <p>Hi there,</p>
+      <p>You’ve been invited to join the <strong>${team.name}</strong> team on Todo App.</p>
+      <p>Click below to accept or ignore:</p>
+      <a href="${inviteLink}" style="color:#2B1887;font-weight:bold;">Accept Invite</a>
+      <p>This invite will expire in 7 days.</p>
+    `;
+
+    await sendEmail(email, subject, message);
+
+    res.status(201).json({ message: "Invite sent successfully" });
+  } catch (error) {
+    console.error("Invite Error:", error);
+    res.status(500).json({ message: "Server error sending invite" });
   }
 };
 
-
-exports.getMyInvites = async (req, res) => {
-  try {
-    const user = await User.findById(req.userId);
-    const invites = await Invite.find({ email: user.email, status: "pending" })
-      .populate("invitedBy", "name email")
-      .populate("team", "name")
-      .populate("board", "title");
-    res.json(invites);
-  } catch (err) {
-    res.status(500).json({ message: "Error fetching invites" });
-  }
-};
 
 exports.acceptInvite = async (req, res) => {
   try {
-    const { inviteId } = req.params;
+    const { token } = req.params;
     const userId = req.userId;
 
-    const invite = await Invite.findById(inviteId);
-    if (!invite) return res.status(404).json({ message: "Invite not found" });
-    if (invite.status !== "pending") return res.status(400).json({ message: "Invite already handled" });
+    const invite = await Invite.findOne({ token });
+    if (!invite) return res.status(400).json({ message: "Invalid or expired token" });
+
+    if (invite.status !== "pending")
+      return res.status(400).json({ message: "Invite already used or rejected" });
+
+    if (invite.expiresAt < Date.now())
+      return res.status(400).json({ message: "Invite expired" });
 
 
-    if (invite.team) {
-      const team = await Team.findById(invite.team);
-      if (!team) return res.status(404).json({ message: "Team not found" });
-
-      const already = team.members.some(m => m.userId.toString() === userId.toString());
-      if (!already) {
-        team.members.push({ userId, role: invite.role });
-        await team.save();
-      }
-    }
-
- 
-    if (invite.board) {
-      const board = await Board.findById(invite.board);
-      if (!board) return res.status(404).json({ message: "Board not found" });
-
-      const already = board.members.some(m => m.userId.toString() === userId.toString());
-      if (!already) {
-        board.members.push({ userId, role: invite.role });
-        await board.save();
-      }
+    const team = await Team.findById(invite.teamId);
+    if (!team.members.includes(userId)) {
+      team.members.push(userId);
+      await team.save();
     }
 
     invite.status = "accepted";
     await invite.save();
 
-    res.json({ message: "Invite accepted", invite });
-  } catch (err) {
-    res.status(500).json({ message: "Error accepting invite" });
+    res.json({ message: "Invite accepted. You’ve joined the team!" });
+  } catch (error) {
+    console.error("Accept Invite Error:", error);
+    res.status(500).json({ message: "Server error accepting invite" });
   }
 };
 
 
 exports.rejectInvite = async (req, res) => {
   try {
-    const { inviteId } = req.params;
+    const { token } = req.params;
 
-    const invite = await Invite.findById(inviteId);
-    if (!invite) return res.status(404).json({ message: "Invite not found" });
+    const invite = await Invite.findOne({ token });
+    if (!invite) return res.status(400).json({ message: "Invalid invite" });
 
     invite.status = "rejected";
     await invite.save();
 
     res.json({ message: "Invite rejected" });
-  } catch (err) {
-    res.status(500).json({ message: "Error rejecting invite" });
-  }
-};
-
-
-exports.cancelInvite = async (req, res) => {
-  try {
-    const { inviteId } = req.params;
-    const actorId = req.userId;
-
-    const invite = await Invite.findById(inviteId).populate("team").populate("board");
-    if (!invite) return res.status(404).json({ message: "Invite not found" });
-
-    if (invite.invitedBy.toString() !== actorId.toString()) {
-      return res.status(403).json({ message: "Not allowed to cancel this invite" });
-    }
-
-    await Invite.findByIdAndDelete(inviteId);
-
-    res.json({ message: "Invite cancelled" });
-  } catch (err) {
-    res.status(500).json({ message: "Error cancelling invite" });
+  } catch (error) {
+    console.error("Reject Invite Error:", error);
+    res.status(500).json({ message: "Server error rejecting invite" });
   }
 };

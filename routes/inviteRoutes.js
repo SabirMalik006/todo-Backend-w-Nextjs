@@ -1,21 +1,10 @@
 const express = require("express");
 const router = express.Router();
-const auth = require("../middleware/authMiddleware");
-const inviteController = require("../controllers/inviteController");
+const authMiddleware = require("../middleware/authMiddleware");
+const { sendInvite, acceptInvite, rejectInvite } = require("../controllers/inviteController");
 
-
-router.post("/", auth, inviteController.sendInvite);
-
-
-router.get("/my", auth, inviteController.getMyInvites);
-
-
-router.post("/:inviteId/accept", auth, inviteController.acceptInvite);
-
-
-router.post("/:inviteId/reject", auth, inviteController.rejectInvite);
-
-
-router.delete("/:inviteId", auth, inviteController.cancelInvite);
+router.post("/send", authMiddleware, sendInvite);
+router.get("/accept/:token", authMiddleware, acceptInvite);
+router.get("/reject/:token", rejectInvite);
 
 module.exports = router;

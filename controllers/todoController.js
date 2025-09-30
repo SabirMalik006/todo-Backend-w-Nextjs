@@ -13,15 +13,22 @@ exports.getTodos = async (req, res) => {
 
 exports.createTodo = async (req, res) => {
   try {
-    let { title, description, priority, column , day} = req.body;
+    let { title, description, priority, column, board } = req.body;
+
+    if (!title || !column || !board) {
+      return res
+        .status(400)
+        .json({ message: "Title, column, and board are required" });
+    }
 
     const allowed = ["low", "medium", "high"];
     if (!allowed.includes(priority)) {
       priority = undefined;
     }
 
-    const lastTodo = await Todo.findOne({ user: req.userId }).sort("-order");
+    const lastTodo = await Todo.findOne({ user: req.userId, board }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
+
 
     const days = [
       "Sunday",
@@ -34,19 +41,21 @@ exports.createTodo = async (req, res) => {
     ];
     const currentDay = days[new Date().getDay()].slice(0, 3);
 
-    // ✅ Fix: use req.body.column
+
     const todo = await Todo.create({
       title,
       description,
       user: req.userId,
+      board,
+      column: new mongoose.Types.ObjectId(column),
       priority,
       order: newOrder,
-      column: new mongoose.Types.ObjectId(column), // correct usage
       day: currentDay,
     });
 
     res.json(todo);
   } catch (error) {
+    console.error("Error creating todo:", error);
     res.status(500).json({ message: error.message });
   }
 };
@@ -119,5 +128,25 @@ exports.updateTodoOrder = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: error.message });
+  }
+};
+
+exports.getTodosByBoard = async (req, res) => {
+  try {
+    const { boardId } = req.params;
+    if (!boardId)
+      return res.status(400).json({ message: "Board ID is required" });
+
+    const todos = await Todo.find({
+      user: req.userId,
+      board: boardId,
+    })
+      .sort({ order: 1 })
+      .populate("column", "_id name");
+
+    res.json(todos);
+  } catch (error) {
+    console.error("Error fetching todos by board:", error);
+    res.status(500).json({ message: "Error fetching todos by board" });
   }
 };
