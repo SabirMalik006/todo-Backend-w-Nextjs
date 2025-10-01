@@ -5,6 +5,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const Column = require("../models/columnModel.js");
 const Todo = require("../models/todoModels.js");
+const Board = require("../models/BoardModal.js")
 // const fetch = require("node-fetch");
 
 const generateAccessToken = (id) => {
@@ -28,7 +29,7 @@ exports.registerUser = async (req, res) => {
 
     const user = await User.create({ name, email, password: hashedPassword });
 
-    // Create default columns
+
     const defaultColumnsNames = ["todo", "pending", "done"];
     const createdColumns = await Promise.all(
       defaultColumnsNames.map((name, idx) =>
@@ -36,6 +37,7 @@ exports.registerUser = async (req, res) => {
           name,
           user: user._id,
           order: idx + 1,
+          board: defaultBoard._id,
           isDefault: true,
         })
       )
@@ -167,13 +169,13 @@ exports.googleLogin = (req, res) => {
   res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`);
 };
 
+
 exports.googleCallback = async (req, res) => {
   try {
     const { code, state } = req.query;
     if (state !== req.cookies.oauth_state) {
       return res.status(400).json({ message: "Invalid state" });
     }
-
 
     const tokenResp = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -190,11 +192,9 @@ exports.googleCallback = async (req, res) => {
     const tokenData = await tokenResp.json();
     if (tokenData.error) return res.status(400).json(tokenData);
 
-
     const parts = tokenData.id_token.split(".");
     const payload = JSON.parse(Buffer.from(parts[1], "base64").toString());
     const { email, name, picture, sub } = payload;
-
 
     let user = await User.findOne({ email });
     let isNew = false;
@@ -209,33 +209,42 @@ exports.googleCallback = async (req, res) => {
       isNew = true;
     }
 
+    
+    let defaultBoard = await Board.findOne({ owner: user._id });
+    if (!defaultBoard) {
+      defaultBoard = await Board.create({
+        title: "My First Board",
+        owner: user._id,
+        description: "This is your first board",
+      });
+    }
 
+    
     const existingColumns = await Column.find({ user: user._id });
     if (isNew || existingColumns.length === 0) {
-
-      const defaultColumnsNames = ["todo", "pending", "done"];
-      const createdColumns = await Promise.all(
-        defaultColumnsNames.map((colName, idx) =>
+      const defaultColumns = ["todo", "pending", "done"];
+      const created = await Promise.all(
+        defaultColumns.map((colName, idx) =>
           Column.create({
             name: colName,
             user: user._id,
+            board: defaultBoard._id,
             order: idx + 1,
             isDefault: true,
           })
         )
       );
 
-
-      const firstColumn = createdColumns[0];
       await Todo.create({
         title: "Welcome! 🎉",
-        description: "This is your first todo. Edit or delete it to get started.",
+        description: "This is your first todo — drag and drop it too!",
         user: user._id,
-        columnId: firstColumn._id,
+        columnId: created[0]._id,
+        board: defaultBoard._id,
       });
     }
 
-
+    
     const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "15m",
     });
@@ -251,7 +260,7 @@ exports.googleCallback = async (req, res) => {
       { upsert: true, new: true }
     );
 
-
+    
     const redirectUrl = `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&id=${user._id}&name=${encodeURIComponent(
       user.name
     )}&email=${encodeURIComponent(user.email)}`;
