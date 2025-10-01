@@ -1,4 +1,3 @@
-
 const User = require("../models/userModels.js");
 const Token = require("../models/tokenModel.js");
 const bcrypt = require("bcryptjs");
