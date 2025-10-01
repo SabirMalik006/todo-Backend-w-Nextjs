@@ -2,6 +2,7 @@ const Team = require("../models/TeamModal");
 const User = require("../models/userModels");
 const Invite = require("../models/BoardTeamModal");
 const crypto = require("crypto");
+const sendEmail = require("../config/sendEmail")
 
 async function getMemberRole(team, userId) {
   const member = team.members.find(m => m.userId.toString() === userId.toString());

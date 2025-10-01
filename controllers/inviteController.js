@@ -2,8 +2,7 @@ const Invite = require("../models/InviteModal");
 const Team = require("../models/TeamModal");
 const User = require("../models/userModels");
 const crypto = require("crypto");
-const sendEmail = require("../utils/sendEmail");
-
+const sendEmail = require("../utils/sendEmail"); // ✅ SendGrid-based
 
 exports.sendInvite = async (req, res) => {
   try {
@@ -17,10 +16,10 @@ exports.sendInvite = async (req, res) => {
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-
+    // ✅ Generate unique token
     const token = crypto.randomBytes(32).toString("hex");
 
-
+    // ✅ Create invite record
     const invite = new Invite({
       email,
       teamId,
@@ -29,7 +28,7 @@ exports.sendInvite = async (req, res) => {
     });
     await invite.save();
 
-
+    // ✅ Create invite link & message
     const inviteLink = `${process.env.FRONTEND_URL}/invite/${token}`;
     const subject = `You're invited to join ${team.name}`;
     const message = `
@@ -40,7 +39,12 @@ exports.sendInvite = async (req, res) => {
       <p>This invite will expire in 7 days.</p>
     `;
 
-    await sendEmail(email, subject, message);
+    // ✅ Send email using SendGrid util
+    await sendEmail({
+      to: email,
+      subject,
+      html: message,
+    });
 
     res.status(201).json({ message: "Invite sent successfully" });
   } catch (error) {
@@ -48,7 +52,6 @@ exports.sendInvite = async (req, res) => {
     res.status(500).json({ message: "Server error sending invite" });
   }
 };
-
 
 exports.acceptInvite = async (req, res) => {
   try {
@@ -63,7 +66,6 @@ exports.acceptInvite = async (req, res) => {
 
     if (invite.expiresAt < Date.now())
       return res.status(400).json({ message: "Invite expired" });
-
 
     const team = await Team.findById(invite.teamId);
     if (!team.members.includes(userId)) {
@@ -80,7 +82,6 @@ exports.acceptInvite = async (req, res) => {
     res.status(500).json({ message: "Server error accepting invite" });
   }
 };
-
 
 exports.rejectInvite = async (req, res) => {
   try {
