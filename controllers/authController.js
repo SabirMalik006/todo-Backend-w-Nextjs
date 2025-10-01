@@ -30,6 +30,13 @@ exports.registerUser = async (req, res) => {
     const user = await User.create({ name, email, password: hashedPassword });
 
 
+    const defaultBoard = await Board.create({
+      title: "My First Board",
+      owner: user._id,
+      description: "This is your first board",
+    });
+
+
     const defaultColumnsNames = ["todo", "pending", "done"];
     const createdColumns = await Promise.all(
       defaultColumnsNames.map((name, idx) =>
@@ -43,13 +50,16 @@ exports.registerUser = async (req, res) => {
       )
     );
 
+
     const firstColumn = createdColumns[0];
     await Todo.create({
       title: "Welcome! 🎉",
       description: "This is your first todo. Edit or delete it to get started.",
       user: user._id,
       columnId: firstColumn._id,
+      board: defaultBoard._id,
     });
+
     res.json({
       _id: user._id,
       name: user.name,
@@ -209,7 +219,7 @@ exports.googleCallback = async (req, res) => {
       isNew = true;
     }
 
-    
+
     let defaultBoard = await Board.findOne({ owner: user._id });
     if (!defaultBoard) {
       defaultBoard = await Board.create({
@@ -219,7 +229,7 @@ exports.googleCallback = async (req, res) => {
       });
     }
 
-    
+
     const existingColumns = await Column.find({ user: user._id });
     if (isNew || existingColumns.length === 0) {
       const defaultColumns = ["todo", "pending", "done"];
@@ -244,7 +254,7 @@ exports.googleCallback = async (req, res) => {
       });
     }
 
-    
+
     const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
       expiresIn: "15m",
     });
@@ -260,7 +270,7 @@ exports.googleCallback = async (req, res) => {
       { upsert: true, new: true }
     );
 
-    
+
     const redirectUrl = `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&id=${user._id}&name=${encodeURIComponent(
       user.name
     )}&email=${encodeURIComponent(user.email)}`;
