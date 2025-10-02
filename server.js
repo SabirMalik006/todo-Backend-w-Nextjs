@@ -28,6 +28,7 @@ app.use("/api/board", require("./routes/boardRoutes"));
 app.use("/api/team", require("./routes/teamRoutes"));
 app.use("/api/activity", require("./routes/activityRoutes"));
 app.use("/api/board-team", require("./routes/boardTeamRoutes"));
+app.use("/api/todos", require("./routes/commentRoutes"));
 
 
 

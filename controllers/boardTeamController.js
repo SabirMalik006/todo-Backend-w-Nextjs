@@ -8,22 +8,22 @@ const inviteMember = async (req, res) => {
   try {
     const { email } = req.body;
     const { boardId } = req.params;
-    const invitedById = req.userId; // ✅ use req.userId from middleware
+    const invitedById = req.userId; 
 
     if (!invitedById) {
       return res.status(401).json({ message: "Unauthorized" });
     }
 
-    // ✅ Fetch inviter details
+
     const inviter = await User.findById(invitedById);
     if (!inviter) {
       return res.status(404).json({ message: "Inviter not found" });
     }
 
-    // ✅ Generate unique token for invite
+
     const token = crypto.randomBytes(32).toString("hex");
 
-    // ✅ Save invite in DB
+
     await BoardInvite.create({
       email,
       boardId,
@@ -31,10 +31,10 @@ const inviteMember = async (req, res) => {
       token,
     });
 
-    // ✅ Create invite link
+
     const inviteUrl = `${process.env.CLIENT_URL}/invite/respond?token=${token}`;
 
-    // ✅ Send Email
+
     await sendEmail({
       to: email,
       subject: "Board Invitation - Action Required",

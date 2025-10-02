@@ -10,10 +10,9 @@ exports.getTodos = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
-
 exports.createTodo = async (req, res) => {
   try {
-    let { title, description, priority, column, board } = req.body;
+    let { title, description, priority, column, board, day } = req.body;
 
     if (!title || !column || !board) {
       return res
@@ -26,20 +25,12 @@ exports.createTodo = async (req, res) => {
       priority = undefined;
     }
 
+
     const lastTodo = await Todo.findOne({ user: req.userId, board }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
 
 
-    const days = [
-      "Sunday",
-      "Monday",
-      "Tuesday",
-      "Wednesday",
-      "Thursday",
-      "Friday",
-      "Saturday",
-    ];
-    const currentDay = days[new Date().getDay()].slice(0, 3);
+    const todoDate = day ? new Date(day) : new Date();
 
 
     const todo = await Todo.create({
@@ -50,7 +41,7 @@ exports.createTodo = async (req, res) => {
       column: new mongoose.Types.ObjectId(column),
       priority,
       order: newOrder,
-      day: currentDay,
+      day: todoDate,
     });
 
     res.json(todo);
@@ -59,6 +50,7 @@ exports.createTodo = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 exports.updateTodo = async (req, res) => {
   try {

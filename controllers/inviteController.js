@@ -2,7 +2,7 @@ const Invite = require("../models/InviteModal");
 const Team = require("../models/TeamModal");
 const User = require("../models/userModels");
 const crypto = require("crypto");
-const sendEmail = require("../utils/sendEmail"); // ✅ SendGrid-based
+const sendEmail = require("../utils/sendEmail"); 
 
 exports.sendInvite = async (req, res) => {
   try {
@@ -16,10 +16,10 @@ exports.sendInvite = async (req, res) => {
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    // ✅ Generate unique token
+    
     const token = crypto.randomBytes(32).toString("hex");
 
-    // ✅ Create invite record
+    
     const invite = new Invite({
       email,
       teamId,
@@ -28,7 +28,7 @@ exports.sendInvite = async (req, res) => {
     });
     await invite.save();
 
-    // ✅ Create invite link & message
+    
     const inviteLink = `${process.env.FRONTEND_URL}/invite/${token}`;
     const subject = `You're invited to join ${team.name}`;
     const message = `
@@ -39,7 +39,7 @@ exports.sendInvite = async (req, res) => {
       <p>This invite will expire in 7 days.</p>
     `;
 
-    // ✅ Send email using SendGrid util
+    
     await sendEmail({
       to: email,
       subject,
