@@ -270,7 +270,7 @@ exports.googleCallback = async (req, res) => {
     );
 
 
-    const redirectUrl = `${process.env.PROD_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&id=${user._id}&name=${encodeURIComponent(
+    const redirectUrl = `${process.env.CLIENT_URL}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}&id=${user._id}&name=${encodeURIComponent(
       user.name
     )}&email=${encodeURIComponent(user.email)}`;
 
