@@ -32,7 +32,7 @@ const inviteMember = async (req, res) => {
     });
 
 
-    const inviteUrl = `${process.env.PROD_URL}/invite/respond?token=${token}`;
+    const inviteUrl = `${process.env.CLIENT_URL}/invite/respond?token=${token}`;
 
 
     await sendEmail({
