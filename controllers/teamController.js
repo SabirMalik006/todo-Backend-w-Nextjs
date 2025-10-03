@@ -62,7 +62,7 @@ exports.inviteMember = async (req, res) => {
       status: "pending",
     });
 
-    const inviteLink = `${process.env.FRONTEND_URL}/invite/accept?token=${token}`;
+    const inviteLink = `${process.env.CLIENT_URL}/invite/accept?token=${token}`;
 
     await sendEmail({
       to: email,

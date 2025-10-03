@@ -29,7 +29,7 @@ exports.sendInvite = async (req, res) => {
     await invite.save();
 
     
-    const inviteLink = `${process.env.FRONTEND_URL}/invite/${token}`;
+    const inviteLink = `${process.env.CLIENT_URL}/invite/${token}`;
     const subject = `You're invited to join ${team.name}`;
     const message = `
       <p>Hi there,</p>
