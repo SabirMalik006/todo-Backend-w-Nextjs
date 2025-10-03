@@ -123,3 +123,44 @@ exports.getColumnsByBoard = async (req, res) => {
     res.status(500).json({ message: "Error fetching columns" });
   }
 };
+
+
+exports.updateColumnOrder = async (req, res) => {
+  try {
+    const orderData = req.body.orderData || req.body.columnOrderData;
+
+    if (!Array.isArray(orderData) || orderData.length === 0) {
+      return res.status(400).json({ message: "Invalid or empty order data" });
+    }
+
+    const updates = [];
+
+    for (const item of orderData) {
+      if (!item.id || item.order === undefined) {
+        return res.status(400).json({ message: "Invalid column item format" });
+      }
+
+      const updated = await Column.findByIdAndUpdate(
+        item.id,
+        { order: item.order, board: item.board },
+        { runValidators: false, new: true }
+      );
+
+      if (updated) updates.push(updated._id);
+    }
+
+    res.status(200).json({
+      message: "Column order updated successfully",
+      updatedColumns: updates.length,
+    });
+  } catch (error) {
+    console.error("Column update-order error:", error);
+    res.status(500).json({
+      message: "Server error while updating column order",
+      error: error.message,
+    });
+  }
+};
+
+
+
