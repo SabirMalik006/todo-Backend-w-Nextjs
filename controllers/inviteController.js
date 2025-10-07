@@ -1,8 +1,9 @@
 const Invite = require("../models/InviteModal");
 const Team = require("../models/TeamModal");
 const User = require("../models/userModels");
+const Board = require("../models/BoardModel");
 const crypto = require("crypto");
-const sendEmail = require("../utils/sendEmail"); 
+const sendEmail = require("../utils/sendEmail");
 
 exports.sendInvite = async (req, res) => {
   try {
@@ -16,10 +17,8 @@ exports.sendInvite = async (req, res) => {
     const team = await Team.findById(teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    
     const token = crypto.randomBytes(32).toString("hex");
 
-    
     const invite = new Invite({
       email,
       teamId,
@@ -28,7 +27,6 @@ exports.sendInvite = async (req, res) => {
     });
     await invite.save();
 
-    
     const inviteLink = `${process.env.CLIENT_URL}/invite/${token}`;
     const subject = `You're invited to join ${team.name}`;
     const message = `
@@ -39,7 +37,6 @@ exports.sendInvite = async (req, res) => {
       <p>This invite will expire in 7 days.</p>
     `;
 
-    
     await sendEmail({
       to: email,
       subject,
@@ -59,24 +56,47 @@ exports.acceptInvite = async (req, res) => {
     const userId = req.userId;
 
     const invite = await Invite.findOne({ token });
-    if (!invite) return res.status(400).json({ message: "Invalid or expired token" });
+    if (!invite)
+      return res.status(400).json({ message: "Invalid or expired token" });
 
     if (invite.status !== "pending")
-      return res.status(400).json({ message: "Invite already used or rejected" });
+      return res
+        .status(400)
+        .json({ message: "Invite already used or rejected" });
 
     if (invite.expiresAt < Date.now())
       return res.status(400).json({ message: "Invite expired" });
 
     const team = await Team.findById(invite.teamId);
-    if (!team.members.includes(userId)) {
-      team.members.push(userId);
+    if (!team) return res.status(404).json({ message: "Team not found" });
+
+    // ✅ Add user to team if not already present
+    const alreadyInTeam = team.members.some(
+      (m) => m.userId.toString() === userId.toString()
+    );
+
+    if (!alreadyInTeam) {
+      team.members.push({ userId, role: "member" });
       await team.save();
     }
 
+    // ✅ Add user to all boards owned by this team owner
+    const boards = await Board.find({ owner: team.owner });
+    for (const board of boards) {
+      const alreadyInBoard = board.team.some(
+        (member) => member.user.toString() === userId.toString()
+      );
+      if (!alreadyInBoard) {
+        board.team.push({ user: userId, role: "member" });
+        await board.save();
+      }
+    }
+
+    // ✅ Mark invite as accepted
     invite.status = "accepted";
     await invite.save();
 
-    res.json({ message: "Invite accepted. You’ve joined the team!" });
+    res.json({ message: "Invite accepted. You’ve joined the team and related boards!" });
   } catch (error) {
     console.error("Accept Invite Error:", error);
     res.status(500).json({ message: "Server error accepting invite" });

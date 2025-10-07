@@ -64,7 +64,6 @@ const respondInvite = async (req, res) => {
     const { token } = req.query;
     const { action } = req.body;
 
-
     const invite = await BoardInvite.findOne({ token });
 
     if (!invite) {
@@ -81,9 +80,7 @@ const respondInvite = async (req, res) => {
       return res.json({ message: "Invitation rejected" });
     }
 
-
     if (action === "accept") {
-
       const user = await User.findOne({ email: invite.email });
       if (!user) {
         return res.status(400).json({
@@ -91,10 +88,7 @@ const respondInvite = async (req, res) => {
         });
       }
 
-
       let team = await BoardTeam.findOne({ board: invite.boardId });
-
-
       if (!team) {
         team = await BoardTeam.create({
           board: invite.boardId,
@@ -102,10 +96,24 @@ const respondInvite = async (req, res) => {
           members: [user._id],
         });
       } else {
-
         if (!team.members.includes(user._id)) {
           team.members.push(user._id);
           await team.save();
+        }
+      }
+      
+      const board = await Board.findById(invite.boardId);
+      if (board) {
+        const isAlreadyInTeam = board.team.some(
+          (m) => m.user.toString() === user._id.toString()
+        );
+
+        if (!isAlreadyInTeam) {
+          board.team.push({
+            user: new mongoose.Types.ObjectId(user._id),
+            role: "member",
+          });
+          await board.save();
         }
       }
 

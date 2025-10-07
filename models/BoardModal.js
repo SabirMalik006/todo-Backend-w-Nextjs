@@ -15,6 +15,21 @@ const BoardSchema = new mongoose.Schema(
         },
       },
     ],
+    background: {
+      type: {
+        type: String,
+        enum: ["solid", "gradient", "pattern"],
+        default: "solid",
+      },
+      value: {
+        type: String,
+        default: "#ffffff",
+      },
+      accentTextColor: {
+        type: String,
+        default: "#000000",
+      },
+    },
   },
   { timestamps: true }
 );

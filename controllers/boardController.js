@@ -5,7 +5,7 @@ const Activity = require("../models/ActivityModal");
 
 exports.createBoard = async (req, res) => {
   try {
-    const { title, description } = req.body;
+    const { title, description, color, bgColor } = req.body;
 
     if (!title) {
       return res.status(400).json({ message: "Board title is required" });
@@ -14,7 +14,9 @@ exports.createBoard = async (req, res) => {
     const newBoard = new Board({
       title,
       description,
-      owner: req.userId, 
+      owner: req.userId,
+      color,
+      bgColor,
     });
 
     await newBoard.save();
@@ -29,13 +31,24 @@ exports.createBoard = async (req, res) => {
 
 exports.getBoards = async (req, res) => {
   try {
-    const boards = await Board.find({ owner: req.userId }); 
+    const userId = req.userId;
+
+    const boards = await Board.find({
+      $or: [
+        { owner: userId },
+        { "team.user": userId }
+      ],
+    })
+      .populate("owner", "name email")
+      .populate("team.user", "name email");
+
     return res.json(boards);
   } catch (error) {
     console.error("Error fetching boards:", error);
     res.status(500).json({ message: "Server error while fetching boards" });
   }
 };
+
 
 
 exports.deleteBoard = async (req, res) => {
@@ -58,11 +71,11 @@ exports.deleteBoard = async (req, res) => {
 exports.updateBoard = async (req, res) => {
   try {
     const { id } = req.params;
-    const { title, description } = req.body;
+    const { title, description, color, bgColor } = req.body;
 
     const updatedBoard = await Board.findOneAndUpdate(
-      { _id: id, owner: req.userId }, 
-      { title, description },
+      { _id: id, owner: req.userId },
+      { title, description, color, bgColor },
       { new: true }
     );
 
@@ -76,6 +89,7 @@ exports.updateBoard = async (req, res) => {
     res.status(500).json({ message: "Server error while updating board" });
   }
 };
+
 
 exports.getBoardById = async (req, res) => {
   try {

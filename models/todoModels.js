@@ -20,25 +20,27 @@ const commentSchema = new mongoose.Schema(
   { _id: true }
 );
 
-const todoSchema = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: String,
-  priority: { type: String, enum: ["low", "medium", "high"], default: "low" },
-  completed: { type: Boolean, default: false },
-  order: { type: Number, default: 0 },
-  column: { type: mongoose.Schema.Types.ObjectId, ref: "Column" },
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  board: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "Board",
-    required: true,
+const todoSchema = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    description: String,
+    priority: { type: String, enum: ["low", "medium", "high"], default: "low" },
+    completed: { type: Boolean, default: false },
+    order: { type: Number, default: 0 },
+    column: { type: mongoose.Schema.Types.ObjectId, ref: "Column" },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    board: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Board",
+      required: true,
+    },
+    team: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
+    members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+    day: { type: Date, default: Date.now },
+    comments: [commentSchema],
+    color: { type: String, default: "" },
   },
-  team: { type: mongoose.Schema.Types.ObjectId, ref: "Team" },
-  members: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
-  day: { type: Date, default: Date.now },
-  comments: [commentSchema],
-}, { timestamps: true });
-
-
+  { timestamps: true }
+);
 
 module.exports = mongoose.model("Todo", todoSchema);

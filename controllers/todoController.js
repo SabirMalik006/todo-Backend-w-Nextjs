@@ -12,7 +12,7 @@ exports.getTodos = async (req, res) => {
 };
 exports.createTodo = async (req, res) => {
   try {
-    let { title, description, priority, column, board, day } = req.body;
+    let { title, description, priority, column, board, day, color, bgColor } = req.body;
 
     if (!title || !column || !board) {
       return res
@@ -25,13 +25,10 @@ exports.createTodo = async (req, res) => {
       priority = undefined;
     }
 
-
     const lastTodo = await Todo.findOne({ user: req.userId, board }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
 
-
     const todoDate = day ? new Date(day) : new Date();
-
 
     const todo = await Todo.create({
       title,
@@ -42,6 +39,8 @@ exports.createTodo = async (req, res) => {
       priority,
       order: newOrder,
       day: todoDate,
+      color,
+      bgColor,
     });
 
     res.json(todo);
@@ -57,18 +56,18 @@ exports.updateTodo = async (req, res) => {
     const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
     if (!todo) return res.status(404).json({ message: "Todo not found" });
 
-    let { title, completed, description, priority, column } = req.body;
+    let { title, completed, description, priority, column, color, day } = req.body;
 
     if (
       !title &&
       completed === undefined &&
       !description &&
       !priority &&
-      !column
+      !column &&
+      !color &&
+      day === undefined
     ) {
-      return res
-        .status(400)
-        .json({ message: "At least one field is required" });
+      return res.status(400).json({ message: "At least one field is required" });
     }
 
     if (title !== undefined) todo.title = title;
@@ -80,10 +79,9 @@ exports.updateTodo = async (req, res) => {
       todo.priority = allowed.includes(priority) ? priority : todo.priority;
     }
 
-    if (column !== undefined) {
-      todo.column = column;
-    }
-    if (req.body.day !== undefined) todo.day = req.body.day;
+    if (column !== undefined) todo.column = column;
+    if (day !== undefined) todo.day = day;
+    if (color !== undefined) todo.color = color;
 
     await todo.save();
     res.json(todo);
@@ -91,6 +89,7 @@ exports.updateTodo = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 exports.deleteTodo = async (req, res) => {
   try {
