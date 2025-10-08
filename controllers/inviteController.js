@@ -8,7 +8,7 @@ const sendEmail = require("../utils/sendEmail");
 exports.sendInvite = async (req, res) => {
   try {
     const { email, teamId } = req.body;
-    const inviterId = req.userId;
+    const inviterId = req.userId; 
 
     if (!email || !teamId) {
       return res.status(400).json({ message: "Email and teamId are required" });
@@ -70,7 +70,7 @@ exports.acceptInvite = async (req, res) => {
     const team = await Team.findById(invite.teamId);
     if (!team) return res.status(404).json({ message: "Team not found" });
 
-    // ✅ Add user to team if not already present
+
     const alreadyInTeam = team.members.some(
       (m) => m.userId.toString() === userId.toString()
     );
@@ -80,7 +80,7 @@ exports.acceptInvite = async (req, res) => {
       await team.save();
     }
 
-    // ✅ Add user to all boards owned by this team owner
+
     const boards = await Board.find({ owner: team.owner });
     for (const board of boards) {
       const alreadyInBoard = board.team.some(
@@ -92,7 +92,7 @@ exports.acceptInvite = async (req, res) => {
       }
     }
 
-    // ✅ Mark invite as accepted
+
     invite.status = "accepted";
     await invite.save();
 

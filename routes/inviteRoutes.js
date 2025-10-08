@@ -4,7 +4,7 @@ const authMiddleware = require("../middleware/authMiddleware");
 const { sendInvite, acceptInvite, rejectInvite } = require("../controllers/inviteController");
 
 router.post("/send", authMiddleware, sendInvite);
-router.get("/accept/:token", authMiddleware, acceptInvite);
+router.get("/accept/:token", acceptInvite);
 router.get("/reject/:token", rejectInvite);
 
 module.exports = router;
