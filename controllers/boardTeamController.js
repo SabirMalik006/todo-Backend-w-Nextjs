@@ -3,26 +3,25 @@ const BoardTeam = require("../models/BoardTeam");
 const BoardInvite = require("../models/BoardInvite");
 const sendEmail = require("../config/sendEmail");
 const User = require("../models/userModels");
+const Board = require("../models/BoardModal");
+const mongoose = require("mongoose");
 
 const inviteMember = async (req, res) => {
   try {
     const { email } = req.body;
     const { boardId } = req.params;
-    const invitedById = req.userId; 
+    const invitedById = req.userId;
 
     if (!invitedById) {
       return res.status(401).json({ message: "Unauthorized" });
     }
-
 
     const inviter = await User.findById(invitedById);
     if (!inviter) {
       return res.status(404).json({ message: "Inviter not found" });
     }
 
-
     const token = crypto.randomBytes(32).toString("hex");
-
 
     await BoardInvite.create({
       email,
@@ -31,22 +30,20 @@ const inviteMember = async (req, res) => {
       token,
     });
 
-
     const inviteUrl = `${process.env.CLIENT_URL}/invite/respond?token=${token}`;
-
 
     await sendEmail({
       to: email,
       subject: "Board Invitation - Action Required",
       html: `
-        <h2>You’ve been invited to join a team board!</h2>
+        <h2>You've been invited to join a team board!</h2>
         <p>${inviter.name || "A user"} invited you to collaborate on their board.</p>
         <p>Click below to respond:</p>
         <a href="${inviteUrl}" 
            style="display:inline-block;padding:10px 15px;background:#2B1887;color:white;text-decoration:none;border-radius:8px;">
            Respond to Invitation
         </a>
-        <p>If you don’t want to join, you can ignore this email.</p>
+        <p>If you don't want to join, you can ignore this email.</p>
       `,
     });
 
@@ -56,8 +53,6 @@ const inviteMember = async (req, res) => {
     res.status(500).json({ message: "Failed to send invite" });
   }
 };
-
-
 
 const respondInvite = async (req, res) => {
   try {
@@ -101,16 +96,16 @@ const respondInvite = async (req, res) => {
           await team.save();
         }
       }
-      
+
       const board = await Board.findById(invite.boardId);
       if (board) {
         const isAlreadyInTeam = board.team.some(
-          (m) => m.user.toString() === user._id.toString()
+          (m) => m.user && m.user.toString() === user._id.toString()
         );
 
         if (!isAlreadyInTeam) {
           board.team.push({
-            user: new mongoose.Types.ObjectId(user._id),
+            user: user._id,
             role: "member",
           });
           await board.save();
@@ -177,7 +172,85 @@ const removeMember = async (req, res) => {
   }
 };
 
+const acceptInvite = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const invite = await BoardInvite.findOne({ token });
+
+    if (!invite) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+    if (invite.status !== "pending") {
+      return res.status(400).json({ message: "Invite already used or rejected" });
+    }
+
+    const user = await User.findOne({ email: invite.email });
+    if (!user) {
+      return res.status(400).json({
+        message: "You must sign up first with this email before accepting invite",
+      });
+    }
+
+    let team = await BoardTeam.findOne({ board: invite.boardId });
+    if (!team) {
+      team = await BoardTeam.create({
+        board: invite.boardId,
+        owner: invite.invitedBy,
+        members: [user._id],
+      });
+    } else {
+      if (!team.members.includes(user._id)) {
+        team.members.push(user._id);
+        await team.save();
+      } 
+    }
+
+    const board = await Board.findById(invite.boardId);
+    if (board) {
+      const isAlreadyInTeam = board.team.some(
+        (m) => m.user && m.user.toString() === user._id.toString()
+      );
+
+      if (!isAlreadyInTeam) {
+        board.team.push({
+          user: user._id,
+          role: "member",
+        });
+        await board.save();
+      }
+    }
+
+    invite.status = "accepted";
+    await invite.save();
+    res.json({ message: "Invite accepted successfully" });
+  } catch (error) {
+    console.error("acceptInvite error:", error);
+    res.status(500).json({ message: "Server error accepting invite" });
+  }
+};
+
+const rejectInvite = async (req, res) => {
+  try {
+    const { token } = req.body;
+    const invite = await BoardInvite.findOne({ token });
+    if (!invite) {
+      return res.status(400).json({ message: "Invalid or expired token" });
+    }
+    if (invite.status !== "pending") {
+      return res.status(400).json({ message: "Invite already used or rejected" });
+    }
+    invite.status = "rejected";
+    await invite.save();
+    res.json({ message: "Invite rejected successfully" });
+  } catch (error) {
+    console.error("rejectInvite error:", error);
+    res.status(500).json({ message: "Server error rejecting invite" });
+  }
+}
+
 module.exports = {
+  rejectInvite,
+  acceptInvite,
   inviteMember,
   respondInvite,
   getBoardMembers,

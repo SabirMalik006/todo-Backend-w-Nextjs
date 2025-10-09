@@ -19,6 +19,10 @@ exports.registerUser = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "Name, email and password are required" });
+    }
+
     const userExists = await User.findOne({ email });
     if (userExists)
       return res.status(400).json({ message: "User already exists" });
@@ -28,13 +32,11 @@ exports.registerUser = async (req, res) => {
 
     const user = await User.create({ name, email, password: hashedPassword });
 
-
     const defaultBoard = await Board.create({
       title: "My First Board",
       owner: user._id,
       description: "This is your first board",
     });
-
 
     const defaultColumnsNames = ["todo", "pending", "done"];
     const createdColumns = await Promise.all(
@@ -48,7 +50,6 @@ exports.registerUser = async (req, res) => {
         })
       )
     );
-
 
     const firstColumn = createdColumns[0];
     await Todo.create({
@@ -69,14 +70,20 @@ exports.registerUser = async (req, res) => {
   }
 };
 
-
-
-
 exports.loginUser = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ message: "Email and password are required" });
+    }
+
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "Invalid credentials" });
+
+    if (!user.password) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });

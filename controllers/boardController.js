@@ -1,7 +1,6 @@
 const Board = require("../models/BoardModal");
 const Activity = require("../models/ActivityModal");
-
-
+const mongoose = require("mongoose");
 
 exports.createBoard = async (req, res) => {
   try {
@@ -28,7 +27,6 @@ exports.createBoard = async (req, res) => {
   }
 };
 
-
 exports.getBoards = async (req, res) => {
   try {
     const userId = req.userId;
@@ -50,22 +48,33 @@ exports.getBoards = async (req, res) => {
 };
 
 
-
 exports.deleteBoard = async (req, res) => {
   try {
-    const { id } = req.params;
-    const board = await Board.findOneAndDelete({ _id: id, owner: req.userId }); 
+    const { id: boardId } = req.params;
+    const userId = req.userId;
 
-    if (!board) {
-      return res.status(404).json({ message: "Board not found or not allowed" });
+    if (!mongoose.Types.ObjectId.isValid(boardId)) {
+      return res.status(400).json({ message: "Invalid board ID" });
     }
 
-    return res.json({ message: "Board deleted successfully" });
+    const board = await Board.findById(boardId);
+    if (!board) {
+      return res.status(404).json({ message: "Board not found" });
+    }
+
+    const isOwner = board.owner.toString() === userId;
+    if (!isOwner) {
+      return res.status(403).json({ message: "Only the owner can delete this board" });
+    }
+
+    await Board.deleteOne({ _id: boardId });
+    res.json({ message: "Board deleted successfully" });
   } catch (error) {
     console.error("Error deleting board:", error);
-    res.status(500).json({ message: "Server error while deleting board" });
+    res.status(500).json({ message: "Error deleting board" });
   }
 };
+
 
 
 exports.updateBoard = async (req, res) => {
@@ -74,7 +83,13 @@ exports.updateBoard = async (req, res) => {
     const { title, description, color, bgColor } = req.body;
 
     const updatedBoard = await Board.findOneAndUpdate(
-      { _id: id, owner: req.userId },
+      {
+        _id: id,
+        $or: [
+          { owner: req.userId },
+          { "team.user": req.userId }
+        ]
+      },
       { title, description, color, bgColor },
       { new: true }
     );
@@ -90,17 +105,28 @@ exports.updateBoard = async (req, res) => {
   }
 };
 
-
 exports.getBoardById = async (req, res) => {
   try {
     const { id } = req.params;
-    const board = await Board.findOne({ _id: id, owner: req.userId });
+    const userId = req.userId;
+
+    const board = await Board.findOne({
+      _id: id,
+      $or: [
+        { owner: userId },
+        { "team.user": userId }
+      ]
+    })
+      .populate("owner", "name email")
+      .populate("team.user", "name email");
+
     if (!board) {
       return res.status(404).json({ message: "Board not found or not allowed" });
     }
+
     return res.json(board);
   } catch (error) {
     console.error("Error fetching board:", error);
     res.status(500).json({ message: "Server error while fetching board" });
-  } 
+  }
 };

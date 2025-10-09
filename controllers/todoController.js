@@ -1,6 +1,6 @@
 const Todo = require("../models/todoModels");
 const mongoose = require("mongoose");
-const column = require("../models/columnModel");
+const Board = require("../models/BoardModal");
 
 exports.getTodos = async (req, res) => {
   try {
@@ -10,6 +10,7 @@ exports.getTodos = async (req, res) => {
     res.status(500).json({ message: error.message });
   }
 };
+
 exports.createTodo = async (req, res) => {
   try {
     let { title, description, priority, column, board, day, color, bgColor } = req.body;
@@ -20,12 +21,24 @@ exports.createTodo = async (req, res) => {
         .json({ message: "Title, column, and board are required" });
     }
 
+    const boardDoc = await Board.findOne({
+      _id: board,
+      $or: [
+        { owner: req.userId },
+        { "team.user": req.userId }
+      ]
+    });
+
+    if (!boardDoc) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
+
     const allowed = ["low", "medium", "high"];
     if (!allowed.includes(priority)) {
       priority = undefined;
     }
 
-    const lastTodo = await Todo.findOne({ user: req.userId, board }).sort("-order");
+    const lastTodo = await Todo.findOne({ board }).sort("-order");
     const newOrder = lastTodo ? lastTodo.order + 1 : 1;
 
     const todoDate = day ? new Date(day) : new Date();
@@ -50,11 +63,22 @@ exports.createTodo = async (req, res) => {
   }
 };
 
-
 exports.updateTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
+    const todo = await Todo.findById(req.params.id);
     if (!todo) return res.status(404).json({ message: "Todo not found" });
+
+    const board = await Board.findOne({
+      _id: todo.board,
+      $or: [
+        { owner: req.userId },
+        { "team.user": req.userId }
+      ]
+    });
+
+    if (!board) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
 
     let { title, completed, description, priority, column, color, day } = req.body;
 
@@ -90,11 +114,22 @@ exports.updateTodo = async (req, res) => {
   }
 };
 
-
 exports.deleteTodo = async (req, res) => {
   try {
-    const todo = await Todo.findOne({ _id: req.params.id, user: req.userId });
+    const todo = await Todo.findById(req.params.id);
     if (!todo) return res.status(404).json({ message: "Todo not found" });
+
+    const board = await Board.findOne({
+      _id: todo.board,
+      $or: [
+        { owner: req.userId },
+        { "team.user": req.userId }
+      ]
+    });
+
+    if (!board) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
 
     await Todo.deleteOne({ _id: todo._id });
     res.json({ message: "Todo deleted successfully" });
@@ -125,17 +160,29 @@ exports.updateTodoOrder = async (req, res) => {
 exports.getTodosByBoard = async (req, res) => {
   try {
     const { boardId } = req.params;
-    if (!boardId)
+
+    if (!boardId) {
       return res.status(400).json({ message: "Board ID is required" });
+    }
 
-    const todos = await Todo.find({
-      user: req.userId,
-      board: boardId,
-    })
+    const board = await Board.findOne({
+      _id: boardId,
+      $or: [
+        { owner: req.userId },
+        { "team.user": req.userId }
+      ]
+    });
+
+    if (!board) {
+      return res.status(404).json({ message: "Board not found or not allowed" });
+    }
+
+    const todos = await Todo.find({ board: boardId })
       .sort({ order: 1 })
-      .populate("column", "_id name");
+      .populate("column", "_id name")
+      .populate("user", "name email");
 
-    res.json(todos);
+    return res.json(todos);
   } catch (error) {
     console.error("Error fetching todos by board:", error);
     res.status(500).json({ message: "Error fetching todos by board" });
